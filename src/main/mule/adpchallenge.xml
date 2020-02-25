@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:vm="http://www.mulesoft.org/schema/mule/vm" xmlns:scripting="http://www.mulesoft.org/schema/mule/scripting"
+	xmlns:spring="http://www.mulesoft.org/schema/mule/spring"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/spring http://www.mulesoft.org/schema/mule/spring/current/mule-spring.xsd
+http://www.mulesoft.org/schema/mule/scripting http://www.mulesoft.org/schema/mule/scripting/current/mule-scripting.xsd
+http://www.mulesoft.org/schema/mule/vm http://www.mulesoft.org/schema/mule/vm/current/mule-vm.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="b424fe67-1f75-41f2-b491-cf9778b2eee4" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<vm:config name="VM_Config" doc:name="VM Config" doc:id="7d2c6e07-8df7-474d-a93c-6de8a2eb4873">
+		<vm:connection />
+		<vm:queues >
+			<vm:queue queueName="newEmployee" />
+		</vm:queues>
+	</vm:config>
+	<flow name="No.1createEmployee" doc:id="12cc38be-333d-4ce6-ab54-52e63ff6f9c0" >
+		<http:listener doc:name="/employee" doc:id="6b087656-5ede-4df1-a571-25723f69d40c" config-ref="HTTP_Listener_config" path="/employee">
+			<http:response statusCode="201" />
+		</http:listener>
+		<ee:transform doc:name="Transform Message" doc:id="8a52dc46-8ba7-4a71-aa69-bb058f432ac5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+
+payload.employee.first_name as String ++ " " ++ payload.employee.last_name as String ++ " employee profile is created in HRMS System."
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="No.2CallFlow" doc:id="b8d081b2-7300-4a2e-801b-a29e80a00906" >
+		<http:listener doc:name="/triggerFlow" doc:id="c3d8d439-6f4c-4f8f-b828-2d8a79f3ff06" config-ref="HTTP_Listener_config" path="/triggerFlow"/>
+		<ee:transform doc:name="Transform Message" doc:id="9f0ece69-2394-478f-a34d-1ddb72bb7c10" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+lookup("No.1createEmployee",payload)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<vm:publish doc:name="Publish" doc:id="965f0b75-decc-46cb-b840-4d0753f309e0" config-ref="VM_Config" queueName="newEmployee"/>
+	</flow>
+	<flow name="testFlow" doc:id="4dcc9013-78e4-4732-9046-49ebedf40036" >
+		<vm:listener queueName="newEmployee" doc:name="Listener" doc:id="8b934359-1c6e-4d35-bd79-d3efc834ea97" config-ref="VM_Config"/>
+		<logger level="INFO" doc:name="Logger" doc:id="636cbe6d-d5b5-4bea-9286-578558ac25fa" message="#[payload]"/>
+	</flow>
+	<flow name="No.3CamelCase" doc:id="e1bcadf7-2836-4b91-8f9e-65f1855e86bb" >
+		<http:listener doc:name="/camelCase" doc:id="451d7f28-fada-4dfe-9a49-728fad3f64e8" config-ref="HTTP_Listener_config" path="/camelCase"/>
+		<ee:transform doc:name="Transform Message" doc:id="2ed97683-0c02-4135-a419-617db105b1d5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import java!utils::Convert
+output application/json
+---
+{
+	"camelCase": Convert::makeCamel(payload.name)
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="No.4A" doc:id="69011ac9-8d50-4a2b-a26d-e4346bcc4a41" >
+		<http:listener doc:name="/matchedOnly" doc:id="7034b72f-6061-4a56-9fba-ba8eae732827" config-ref="HTTP_Listener_config" path="/matchedOnly"/>
+		<ee:transform doc:name="Transform Message" doc:id="3b36ec7d-a248-49eb-980a-434196b5fa1d" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+import * from dw::core::Arrays
+
+
+var payload1 = {"employee":
+[
+{"id":"A007","first_name":"Jan","last_name":"Doe"},
+{"id":"A008","first_name":"Ron","last_name":"David"},
+{"id":"A009","first_name":"Jane","last_name":"Kane"},
+{"id":"A010","first_name":"Marsh","last_name":"Megan"},
+{"id":"A011","first_name":"Kelly","last_name":"Mitch"},
+{"id":"A012","first_name":"Chris","last_name":"Vaste"}
+]}
+var payload2 = 
+{"scoreBoard":[
+	{"id":"A007","subjects":["Maths","English","Arts","Drawings"],
+"score":[80,75,89,100]},
+{"id":"A008","subjects":["Maths","English","Arts","Drawings"],"score":[70,85,69,90]},
+{"id":"A021","subjects":["Maths","English","Arts","Drawings"],"score":[90,87,77,95]}
+]
+}
+
+var joined =  join (payload1.employee, payload2.scoreBoard, (emp)-> emp.id, (mark)-> mark.id)
+
+---
+
+
+"certificate":
+ joined map(item)->{
+ 	"id": item.l.id,
+ 	"firstName": item.l.first_name,
+ 	"LastName": item.l.last_name,
+ 	"MarksBySubjectWise": java!utils::ArraysToJson::combineArrays(item.r.subjects,item.r.score)
+ 	
+ }
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="No.4B" doc:id="89166273-c428-47d0-895e-5cfff680a3d4" >
+		<http:listener doc:name="/allRecords" doc:id="0d33d3b3-03ce-4c1c-9477-3720543c3b98" config-ref="HTTP_Listener_config" path="/allRecords"/>
+		<ee:transform doc:name="Transform Message" doc:id="864264d2-89ac-44e7-924f-88019e72141e" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+import * from dw::core::Arrays
+
+
+var payload1 = {"employee":
+[
+{"id":"A007","first_name":"Jan","last_name":"Doe"},
+{"id":"A008","first_name":"Ron","last_name":"David"},
+{"id":"A009","first_name":"Jane","last_name":"Kane"},
+{"id":"A010","first_name":"Marsh","last_name":"Megan"},
+{"id":"A011","first_name":"Kelly","last_name":"Mitch"},
+{"id":"A012","first_name":"Chris","last_name":"Vaste"}
+]}
+var payload2 = 
+{"scoreBoard":[
+	{"id":"A007","subjects":["Maths","English","Arts","Drawings"],
+"score":[80,75,89,100]},
+{"id":"A008","subjects":["Maths","English","Arts","Drawings"],"score":[70,85,69,90]},
+{"id":"A021","subjects":["Maths","English","Arts","Drawings"],"score":[90,87,77,95]}
+]
+}
+
+var joined =  leftJoin (payload1.employee, payload2.scoreBoard, (emp)-> emp.id, (mark)-> mark.id)
+---
+
+"certificate":
+ joined map(item)->{
+ 	"id": item.l.id,
+ 	"firstName": item.l.first_name,
+ 	"LastName": item.l.last_name,
+ 	"MarksBySubjectWise": if (item.r.score != null)  java!utils::ArraysToJson::combineArrays(item.r.subjects,item.r.score) else "No marks reported."
+ 	
+ }
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	<flow name="No.5NoJavaNoDW" doc:id="7f5247c2-85e6-43ae-a419-af504d2a2fc1" >
+		<http:listener doc:name="/number/{num}" doc:id="fed78ff7-ef86-4dbb-89e8-a1f7a83f7e9e" config-ref="HTTP_Listener_config" path="/number/{num}"/>
+		<set-variable value="#[attributes.uriParams.num as Number]" doc:name="Set Variable" doc:id="40487081-ea93-405c-b03d-5ccf8d91d60c" variableName="number"/>
+		<scripting:execute engine="Nashorn" doc:name="Execute" doc:id="cb3c0dfd-983d-4dd1-9c04-dfe5d65cdd95" >
+			<scripting:code >function calc(input){
+var newArr = new Array(input);  
+var outPutArr = [];
+
+for(var i = 0; i&lt;newArr.length; i++){
+
+outPutArr.push(i+1);
+}
+return outPutArr;
+}
+calc(initialVal);</scripting:code>
+			<scripting:parameters ><![CDATA[#[{initialVal: vars.number}]]]></scripting:parameters>
+		</scripting:execute>
+		<ee:transform doc:name="Transform Message" doc:id="cbee0a06-ef9f-4ec9-92f9-d41d2084216c" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+	
+
+	
+</mule>
